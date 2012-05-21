@@ -130,7 +130,7 @@ class TabBar(BalsamiqElement):
             position=self.position,
             tabs=''.join(self.tabs),
             )
-        container_str = '<div id="{id}" class="tabbed">{children}</div>'.format(
+        container_str = '<div id="{id}_content" class="tabbed">{children}</div>'.format(
             id=self.controlID,
             children=self.children_html,
             )
@@ -162,7 +162,7 @@ class VerticalTabBar(BalsamiqElement):
         return tabs
     @property
     def html(self):
-        container_str = '<div id="{id}_con" class="vert_tabbed {position}">{children}</div>'.format(
+        container_str = '<div id="{id}_content" class="vert_tabbed {position}">{children}</div>'.format(
             id=self.controlID,
             position=self.position,
             children=self.children_html,
