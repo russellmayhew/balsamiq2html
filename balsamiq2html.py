@@ -1,195 +1,15 @@
-class BalsamiqElement(object):
-    """Base class for all Balsamiq elements."""
-    def __init__(self, **kwargs):
-        self.tag = kwargs.get('tag', 'div')
-        self.controlID = kwargs.get('controlID', uuid())
-        self.has_floats = False
-        self.flow = True
-        self.children = []
-        self.position_rules = []
-    def __repr__(self):
-        return '<BalsamiqElement instace of type "{tag}" with {children} children.>'.format(
-                                                                            tag=self.tag,
-                                                                            children=len(self.children)
-                                                                            )
-    @property
-    def html(self):
-        html_str = '<{tag} id="{id}">{children}</{tag}>'.format(
-            tag=self.tag,
-            id=self.controlID,
-            children=self.children_html,
-            )
-        return html_str
-    @property
-    def children_html(self):
-        return ''.join([elem.html for elem in self.children])
-    def _sort(self, *args, **kwargs):
-        self.children.sort(*args, **kwargs)
-        for child_element in self.children:
-            child_element._sort(*args, **kwargs)
-    @staticmethod
-    def new(tag="div"):
-        return BalsamiqElement._subclass_map.get(tag, BalsamiqElement)(tag=tag)
-
-class Root(BalsamiqElement):
-    """Special BalsamiqElement subclass for the root object."""
-    title = "TASTAST"
-    def __init__(self, children=None):
-        super(Root, self).__init__(tag='html')
-        if children != None:
-            self.children = children
-    @property
-    def html(self):
-        html_str = """
-<!DOCTYPE html>
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-<meta name="generator" content="Balsamatron 0.1.0"/>
-<meta name="author" content="Russell Mayhew"/>
-<title>{title}</title>
-<link rel="stylesheet" type="text/css" href="style/default.css"/>
-</head>
-<body>
-<div id="main">
-{children}
-</div>
-</body>
-</html>
-""".replace('\n', '').format(
-    title=self.title,
-    children=self.children_html
-    )
-        return html_str
-
-
-class Title(BalsamiqElement):
-    """BalsamiqElement subclass for Title objects."""
-    def __init__(self, **kwargs):
-        super(Title, self).__init__(**kwargs)
-    @property
-    def html(self):
-        html_str = '<h1 id="{id}">{text}</h1>'.format(
-            id=self.controlID,
-            text=self.text,
-            )
-        return html_str
-
-class Canvas(BalsamiqElement):
-    """BalsamiqElement subclass for Canvas objects."""
-    def __init__(self, **kwargs):
-        super(Canvas, self).__init__(**kwargs)
-    @property
-    def html(self):
-        html_str = '<{tag} id="{id}">{children}</{tag}>'.format(
-            tag='div',
-            id=self.controlID,
-            children=self.children_html,
-            )
-        return html_str
-
-class Image(BalsamiqElement):
-    """BalsamiqElement subclass for Image objects."""
-    def __init__(self, **kwargs):
-        super(Image, self).__init__(**kwargs)
-        self.src = "image/image_not_found.png"
-    @property
-    def html(self):
-        html_str = '<{tag} id="{id}" width="{width}" height="{height}" src="{src}">{children}</{tag}>'.format(
-            tag='img',
-            id=self.controlID,
-            width=self.width,
-            height=self.height,
-            src=self.src,
-            children=self.children_html,
-            )
-        return html_str
-
-class TabBar(BalsamiqElement):
-    """BalsamiqElement subclass for TabBar objects."""
-    def __init__(self, **kwargs):
-        super(TabBar, self).__init__(**kwargs)
-        self.position = "top"
-    @property
-    def tabs(self):
-        tabs = []
-        for i, tab_text in enumerate(self.text.split("%2C%20")):
-            if i == self.selectedIndex:
-                class_str = "tab selected"
-            else:
-                class_str = "tab"
-            tabs.append('<li class="{class_str}">{tab_text}</li>'.format(
-                class_str=class_str,
-                tab_text=tab_text
-                ))
-        return tabs
-    @property
-    def html(self):
-        tabs_str = '<ul id="{id}_tabs" class="tab_container {position}">{tabs}<li class="clear"/></ul>'.format(
-            id=self.controlID,
-            position=self.position,
-            tabs=''.join(self.tabs),
-            )
-        container_str = '<div id="{id}_content" class="tabbed">{children}</div>'.format(
-            id=self.controlID,
-            children=self.children_html,
-            )
-        tabs_and_container = tabs_str + container_str if self.position == "top" else container_str + tabs_str
-        html_str = '<div id="{id}">{children}</div>'.format(
-            id=self.controlID,
-            children=tabs_and_container,
-            )
-        return html_str
-
-
-class VerticalTabBar(BalsamiqElement):
-    """BalsamiqElement subclass for VerticalTabBar objects."""
-    def __init__(self, **kwargs):
-        super(VerticalTabBar, self).__init__(**kwargs)
-        self.position = "left"
-    @property
-    def tabs(self):
-        tabs = []
-        for i, tab_text in enumerate(self.text.split("%0A")):
-            if i == self.selectedIndex:
-                class_str = "tab selected"
-            else:
-                class_str = "tab"
-            tabs.append('<li class="{class_str}">{tab_text}</li>'.format(
-                class_str=class_str,
-                tab_text=tab_text
-                ))
-        return tabs
-    @property
-    def html(self):
-        container_str = '<div id="{id}_content" class="vert_tabbed {position}">{children}</div>'.format(
-            id=self.controlID,
-            position=self.position,
-            children=self.children_html,
-            )
-        tabs_str = '<ul id="{id}_tabs" class="vert_tab_container {position}">{tabs}</ul>'.format(
-            id=self.controlID,
-            position=self.position,
-            tabs=''.join(self.tabs),
-            )
-        html_str = '<div id="{id}">{children}<div class="clear"/></div>'.format(
-            id=self.controlID,
-            children=container_str + tabs_str,
-            )
-        return html_str
-        
-
-BalsamiqElement._subclass_map = locals()
-# for item in vars():
-#     SUBCLASS_MAP.update(
-#         dict([(item, vars()[item]) for item in vars() if issubclass(vars()[item], BalsamiqElement)])
-#         )
-
 import os
 import re
 import sys
 import codecs
 import urllib
+# import xml.dom.minidom
+# if not getattr(xml.dom.minidom, 'OrderedDict'):
+#     import collections
+#     import minidom_mods
+#     xml.dom.minidom.OrderedDict = collections.OrderedDict
+#     xml.dom.minidom.Element.__init__ = minidom_mods.__init__
+#     xml.dom.minidom.Element.writexml = minidom_mods.writexml
 from xml.dom.minidom import parseString
 from itertools import product
 from StringIO import StringIO
@@ -197,6 +17,7 @@ from pprint import pformat, pprint
 from copy import deepcopy
 from uuid import uuid4 as uuid
 
+from elements import *
 
 def getattrs(target):
     class_attrs = dir(target.__class__)
@@ -296,11 +117,11 @@ def nest_elements(elements):
             for attr in corner_rel_attrs:
                 delattr(element, attr)
     elements.sort(key=lambda elem: (elem.y, elem.x))
-    root = Root(elements)
+    root = Root(children=elements)
     return root
 
 def parse_siblings(element):
-    element._sort(key=lambda x: x.y)
+    element.sort(key=lambda x: x.y)
     return element
 #     if element.y_overlaps:
 #         if element.x_rel == HIGH:
