@@ -1,0 +1,89 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+}
+
+#main {
+    width: 940px;
+    margin: 0 auto;
+}
+
+.clear {
+    clear: both;
+}
+
+div {
+    border: solid 1px #999;
+}
+
+/*** Title ***/
+h1 {
+    text-align: center;
+}
+
+/*** TabBar ***/
+ul.tab_container {
+    display: block;
+    overflow: auto;
+    margin: 0 auto;
+}
+ul.tab_container li.tab{
+    display: block;
+    float: left;
+    padding: 0 10px;
+    border: 1px solid #999;
+    border-bottom: none;
+    
+}
+ul.tab_container.bottom li.tab{
+    border-bottom: 1px solid #999;
+    border-top: none;
+}
+ul.tab_container li.tab.selected {
+    position: relative;
+    padding: 0 12px;
+    top: 2px;
+}
+ul.tab_container.bottom li.tab.selected {
+    top: -2px;
+}
+div.tabbed {
+}
+
+
+/*** VerticalTabBar ***/
+ul.vert_tab_container {
+    float: right;
+}
+ul.vert_tab_container.right {
+    float: left;
+}
+ul.vert_tab_container li.tab {
+    display: block;
+    padding: 10px 0;
+    border: 1px solid #999;
+    border-right: none;
+}
+ul.vert_tab_container.right li.tab {
+    border-right: 1px solid #999;
+    border-left: none;
+}
+ul.vert_tab_container li.tab.selected {
+    position: relative;
+    padding: 12px 0;
+    left: 2px;
+}
+ul.vert_tab_container.right li.tab.selected {
+    left: -2px;
+}
+div.vert_tabbed {
+    float: right;
+}
+div.vert_tabbed.right {
+    float: left;
+}
