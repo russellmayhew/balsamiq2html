@@ -237,7 +237,7 @@ class ComboBox(BalsamiqElement):
         html_str = '<div id="{id}"><label><select name="{id}"{disabled}>{children}</select></label></div>'.format(
             id=self.controlID,
             text=self.text,
-            disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
+            disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
             children=''.join(self.options),
             )
         return html_str
@@ -258,9 +258,9 @@ class RadioButtonGroup(BalsamiqElement):
                 radio = True
                 state.write('selected')
                 row = row[3:]
-            elif '()' in row[0:2]:
+            elif '(' and ')' in row[0:3]:
                 radio = True
-                row = row[2:]
+                row = row.replace('(', '', 1).replace(')', '', 1)
             else:
                 radio = False
             if radio:
@@ -288,13 +288,63 @@ class RadioButtonGroup(BalsamiqElement):
         return html_str
 
 class CheckBoxGroup(BalsamiqElement):
-    pass
+    def __init__(self, **kwargs):
+        super(CheckBoxGroup, self).__init__(**kwargs)
+        self.text_parsed = False
+
+    def parse_text(self):
+        state = StringIO()
+        for row in self.unescaped_text.split('\n'):
+            if row[0] == row[-1] == '-':
+                checkbox = True
+                state.write('disabled')
+                row = row[1:-1]
+            if '[x]' in row[0:3]:
+                checkbox = True
+                state.write('selected')
+                row = row[3:]
+            elif '[' and ']' in row[0:3]:
+                checkbox = True
+                row = row.replace('[', '', 1).replace(']', '', 1)
+            else:
+                checkbox = False
+            if checkbox:
+                element = CheckBox()
+                element.state = state.getvalue()
+                element.name = self.controlID
+            else:
+                element = Label()
+                element.for_ = self.controlID
+            element.text = row.strip()
+            self.children.append(element)
+
+        self.text_parsed = True
+
+    @property
+    def html(self):
+        if not self.text_parsed:
+            self.parse_text()
+
+        html_str = '<div id="{id}">{children}</div>'.format(
+            id=self.controlID,
+            children=self.children_html,
+            )
+
+        return html_str
 
 class TextInput(BalsamiqElement):
     pass
 
 class TextArea(BalsamiqElement):
-    pass
+    @property
+    def html(self):
+        html_str = '<textarea id="{id}" name="{id}" placeholder="{text}"{disabled}/>'.format(
+            id=self.controlID,
+            disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
+            text=self.text,
+            )
+
+        return html_str
 
 class Link(BalsamiqElement):
     pass
