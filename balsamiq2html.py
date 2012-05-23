@@ -136,8 +136,21 @@ def parse_siblings(element):
 #     if [x for x in element.position_rules if x.startswith('float')]:
 #         big_element.has_floats = True
 
+def re_repl_1(m):
+    return '<{0}>{2}</{1}>'.format(m.group(1), m.group(2), m.group(3).strip('\n\t'))
+def re_repl_2(m):
+    return '{0}{1}'.format(m.group(1), m.group(2).strip('\n\t'))
+def re_repl_3(m):
+    return '{0}{1}'.format(m.group(1), m.group(2).lstrip('\n\t'))
+def re_repl_4(m):
+    return m.group(1).rstrip('\n\t')
+
 def remove_extra_white_space(html_string):
-    return re.sub(r'(?=[^/])>\n[\t]*?\b([^<].+?)\n[\t]*?<', r'>\1<', html_string)
+    #return re.sub(r'(?=[^/])>\n\t*[\b\n]([^<]*)\n[\t]*?<', r'>\1<', html_string)
+    temp = re.sub(r'<(([\w]+)[^/]*?)>([^<]+)</\2>', re_repl_1, html_string, re.DOTALL)
+    temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=</{0,1}(?:a|em|strong|span)[^>]*>)', re_repl_2, temp, re.DOTALL)
+    temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=<)', re_repl_3, temp, re.DOTALL)
+    return re.sub(r'([^<]*)(?=</{0,1}(?:a|em|strong|span)[^>]*>)', re_repl_4, temp, re.DOTALL)
 
 def remove_url_escaping(url_string):
     return urllib.unquote(url_string)

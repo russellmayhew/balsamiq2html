@@ -1,7 +1,20 @@
+import re
 import urllib
 from StringIO import StringIO
 from inspect import isclass
 from uuid import uuid4 as uuid
+
+def REst_repl(m):
+    match1, match2, match3 = m.group(1, 2, 3)
+    if match1:
+        return '<em>{0}</em>'.format(match1)
+    elif match2:
+        return '<a href="#">{0}</a>'.format(match2)
+    elif match3:
+        return '<strong>{0}</strong>'.format(match3)
+    else:
+        return m.group(0)
+
 
 class BalsamiqElement(object):
     """Base class for all Balsamiq elements."""
@@ -38,7 +51,7 @@ class BalsamiqElement(object):
 
     @property
     def unescaped_text(self):
-        return urllib.unquote(self.text)
+        return urllib.unquote(getattr(self, 'text', ''))
 
     def sort(self, *args, **kwargs):
         self.children.sort(*args, **kwargs)
@@ -84,7 +97,7 @@ class Title(BalsamiqElement):
     def html(self):
         html_str = '<h1 id="{id}">{text}</h1>'.format(
             id=self.controlID,
-            text=self.text,
+            text=getattr(self, 'text', ''),
             )
         return html_str
 
@@ -193,7 +206,7 @@ class Button(BalsamiqElement):
     def html(self):
         html_str = '<div id="{id}"><input name="{text}" type="button" value="{text}"/></div>'.format(
             id=self.controlID,
-            text=self.text,
+            text=getattr(self, 'text', ''),
             )
         return html_str
 
@@ -203,7 +216,7 @@ class CheckBox(BalsamiqElement):
         html_str = '<div id="{id}"><label><input type="checkbox" name="{name}" value="{value}"{checked}{disabled}/> {value}</label></div>'.format(
             id=self.controlID,
             name=self.name if hasattr(self, 'name') else self.controlID,
-            value=self.text,
+            value=getattr(self, 'text', ''),
             checked=' checked=""' if 'selected' in self.state.lower() else '',
             disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
             )
@@ -215,7 +228,7 @@ class RadioButton(BalsamiqElement):
         html_str = '<div id="{id}"><label><input type="radio" name="{name}" value="{value}"{checked}{disabled}/> {value}</label></div>'.format(
             id=self.controlID,
             name=self.name if hasattr(self, 'name') else self.controlID,
-            value=self.text,
+            value=getattr(self, 'text', ''),
             checked=' checked=""' if 'selected' in self.state.lower() else '',
             disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
             )
@@ -236,7 +249,7 @@ class ComboBox(BalsamiqElement):
     def html(self):
         html_str = '<div id="{id}"><label><select name="{id}"{disabled}>{children}</select></label></div>'.format(
             id=self.controlID,
-            text=self.text,
+            text=getattr(self, 'text', ''),
             disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
             children=''.join(self.options),
             )
@@ -333,28 +346,59 @@ class CheckBoxGroup(BalsamiqElement):
         return html_str
 
 class TextInput(BalsamiqElement):
-    pass
+    @property
+    def html(self):
+        html_str = '<input type="text" id="{id}" name="{id}" placeholder="{text}"{disabled} />'.format(
+            id=self.controlID,
+            disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
+            text=getattr(self, 'text', ''),
+            )
+
+        return html_str
 
 class TextArea(BalsamiqElement):
     @property
     def html(self):
-        html_str = '<textarea id="{id}" name="{id}" placeholder="{text}"{disabled}/>'.format(
+        html_str = '<textarea id="{id}" name="{id}" placeholder="{text}"{disabled}>\r</textarea>'.format(
             id=self.controlID,
             disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
-            text=self.text,
+            text=getattr(self, 'text', ''),
             )
 
         return html_str
 
 class Link(BalsamiqElement):
-    pass
+    @property
+    def html(self):
+        html_str = '<a id="{id}" href="{href}">{text}</a>'.format(
+            id=self.controlID,
+            href=getattr(self, 'href', '#'),
+            text=getattr(self, 'text', ''),
+            )
+
+        return html_str
 
 class Label(BalsamiqElement):
-    pass
+    @property
+    def html(self):
+        html_str = '<label id="{id}"{for_}>{text}</label>'.format(
+            id=self.controlID,
+            for_= ' for="{0}"'.format(self.for_) if hasattr(self, 'for_') else '',
+            text=getattr(self, 'text', ''),
+            )
+
+        return html_str
 
 class Paragraph(BalsamiqElement):
-    pass
+    @property
+    def html(self):
+        html_str = '<p id="{id}">{text}</p>'.format(
+            id=self.controlID,
+            # Do some _asdf_ *dalsfj* replacement here
+            text=re.sub('_(.+?)_|\[(.+?)\]|(?<=\s)\*(.+?)\*', REst_repl, self.unescaped_text),
+            )
 
+        return html_str
 
 for key, value in locals().copy().iteritems():
     if isclass(value) and issubclass(value, BalsamiqElement):
