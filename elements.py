@@ -15,6 +15,10 @@ def REst_repl(m):
     else:
         return m.group(0)
 
+def REst_filter(string):
+    return re.sub('_(.+?)_|\[(.+?)\]|(?<=\s)\*(.+?)\*', REst_repl, string)
+
+
 
 class BalsamiqElement(object):
     """Base class for all Balsamiq elements."""
@@ -52,6 +56,10 @@ class BalsamiqElement(object):
     @property
     def unescaped_text(self):
         return urllib.unquote(getattr(self, 'text', ''))
+
+    @property
+    def REst_repl_text(self):
+        return re.sub('_(.+?)_|\[(.+?)\]|(?<=\s)\*(.+?)\*', REst_repl, self.unescaped_text)
 
     def sort(self, *args, **kwargs):
         self.children.sort(*args, **kwargs)
@@ -97,7 +105,7 @@ class Title(BalsamiqElement):
     def html(self):
         html_str = '<h1 id="{id}">{text}</h1>'.format(
             id=self.controlID,
-            text=getattr(self, 'text', ''),
+            text=self.unescaped_text,
             )
         return html_str
 
@@ -144,7 +152,7 @@ class TabBar(BalsamiqElement):
                 class_str = "tab"
             tabs.append('<li class="{class_str}">{tab_text}</li>'.format(
                 class_str=class_str,
-                tab_text=tab_text
+                tab_text=REst_filter(tab_text.strip())
                 ))
         return tabs
     @property
@@ -180,7 +188,7 @@ class VerticalTabBar(BalsamiqElement):
                 class_str = "tab"
             tabs.append('<li class="{class_str}">{tab_text}</li>'.format(
                 class_str=class_str,
-                tab_text=tab_text.strip()
+                tab_text=REst_filter(tab_text.strip())
                 ))
         return tabs
     @property
@@ -206,17 +214,18 @@ class Button(BalsamiqElement):
     def html(self):
         html_str = '<div id="{id}"><input name="{text}" type="button" value="{text}"/></div>'.format(
             id=self.controlID,
-            text=getattr(self, 'text', ''),
+            text=self.unescaped_text,
             )
         return html_str
 
 class CheckBox(BalsamiqElement):
     @property
     def html(self):
-        html_str = '<div id="{id}"><label><input type="checkbox" name="{name}" value="{value}"{checked}{disabled}/> {value}</label></div>'.format(
+        html_str = '<div id="{id}"><label><input type="checkbox" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
             id=self.controlID,
             name=self.name if hasattr(self, 'name') else self.controlID,
-            value=getattr(self, 'text', ''),
+            display_val=self.REst_repl_text,
+            value=self.unescaped_text,
             checked=' checked=""' if 'selected' in self.state.lower() else '',
             disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
             )
@@ -225,10 +234,11 @@ class CheckBox(BalsamiqElement):
 class RadioButton(BalsamiqElement):
     @property
     def html(self):
-        html_str = '<div id="{id}"><label><input type="radio" name="{name}" value="{value}"{checked}{disabled}/> {value}</label></div>'.format(
+        html_str = '<div id="{id}"><label><input type="radio" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
             id=self.controlID,
             name=self.name if hasattr(self, 'name') else self.controlID,
-            value=getattr(self, 'text', ''),
+            display_val=self.REst_repl_text,
+            value=self.unescaped_text,
             checked=' checked=""' if 'selected' in self.state.lower() else '',
             disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
             )
@@ -240,7 +250,7 @@ class ComboBox(BalsamiqElement):
         options = []
         for i, option_name in enumerate(self.unescaped_text.split('\n')):
             options.append('<option name="{name}"{selected}></option>'.format(
-                name=option_name,
+                name=REst_filter(option_name),
                 selected=' selected=""' if i == 0 else '',
                 ))
         return options
@@ -249,7 +259,6 @@ class ComboBox(BalsamiqElement):
     def html(self):
         html_str = '<div id="{id}"><label><select name="{id}"{disabled}>{children}</select></label></div>'.format(
             id=self.controlID,
-            text=getattr(self, 'text', ''),
             disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
             children=''.join(self.options),
             )
@@ -261,8 +270,8 @@ class RadioButtonGroup(BalsamiqElement):
         self.text_parsed = False
 
     def parse_text(self):
-        state = StringIO()
         for row in self.unescaped_text.split('\n'):
+            state = StringIO()
             if row[0] == row[-1] == '-':
                 radio = True
                 state.write('disabled')
@@ -283,7 +292,7 @@ class RadioButtonGroup(BalsamiqElement):
             else:
                 element = Label()
                 element.for_ = self.controlID
-            element.text = row.strip()
+            element.text = REst_filter(row).strip()
             self.children.append(element)
 
         self.text_parsed = True
@@ -306,8 +315,8 @@ class CheckBoxGroup(BalsamiqElement):
         self.text_parsed = False
 
     def parse_text(self):
-        state = StringIO()
         for row in self.unescaped_text.split('\n'):
+            state = StringIO()
             if row[0] == row[-1] == '-':
                 checkbox = True
                 state.write('disabled')
@@ -328,7 +337,7 @@ class CheckBoxGroup(BalsamiqElement):
             else:
                 element = Label()
                 element.for_ = self.controlID
-            element.text = row.strip()
+            element.text = REst_filter(row).strip()
             self.children.append(element)
 
         self.text_parsed = True
@@ -351,7 +360,7 @@ class TextInput(BalsamiqElement):
         html_str = '<input type="text" id="{id}" name="{id}" placeholder="{text}"{disabled} />'.format(
             id=self.controlID,
             disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
-            text=getattr(self, 'text', ''),
+            text=self.unescaped_text,
             )
 
         return html_str
@@ -362,7 +371,7 @@ class TextArea(BalsamiqElement):
         html_str = '<textarea id="{id}" name="{id}" placeholder="{text}"{disabled}>\r</textarea>'.format(
             id=self.controlID,
             disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
-            text=getattr(self, 'text', ''),
+            text=self.unescaped_text,
             )
 
         return html_str
@@ -373,7 +382,7 @@ class Link(BalsamiqElement):
         html_str = '<a id="{id}" href="{href}">{text}</a>'.format(
             id=self.controlID,
             href=getattr(self, 'href', '#'),
-            text=getattr(self, 'text', ''),
+            text=self.REst_repl_text,
             )
 
         return html_str
@@ -384,7 +393,7 @@ class Label(BalsamiqElement):
         html_str = '<label id="{id}"{for_}>{text}</label>'.format(
             id=self.controlID,
             for_= ' for="{0}"'.format(self.for_) if hasattr(self, 'for_') else '',
-            text=getattr(self, 'text', ''),
+            text=self.REst_repl_text,
             )
 
         return html_str
@@ -395,10 +404,91 @@ class Paragraph(BalsamiqElement):
         html_str = '<p id="{id}">{text}</p>'.format(
             id=self.controlID,
             # Do some _asdf_ *dalsfj* replacement here
-            text=re.sub('_(.+?)_|\[(.+?)\]|(?<=\s)\*(.+?)\*', REst_repl, self.unescaped_text),
+            text=self.REst_repl_text,
             )
 
         return html_str
+
+
+
+class DateChooser(BalsamiqElement):
+    @property
+    def html(self):
+        html_str = '<input type="date" id="{id}" name="{id}" placeholder="{text}"{disabled} />'.format(
+            id=self.controlID,
+            disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
+            text=self.unescaped_text,
+            )
+
+        return html_str
+
+class HRule(BalsamiqElement):
+    @property
+    def html():
+        return '<hr/>'
+
+class NumericStepper(BalsamiqElement):
+    @property
+    def html(self):
+        html_str = '<input type="number" id="{id}" name="{id}" placeholder="{text}"{disabled} />'.format(
+            id=self.controlID,
+            disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
+            text=self.unescaped_text,
+            )
+
+        return html_str
+
+class BreadCrumbs(BalsamiqElement):
+    pass
+class LinkBar(BalsamiqElement):
+    pass
+class ButtonBar(BalsamiqElement):
+    pass
+
+class DataGrid(BalsamiqElement):
+    @property
+    def html():
+        html_str = "<table><thead></thead><tbody>{children}</tbody></table>".format(
+            children=self.children
+            )
+    pass
+
+class SearchBox(TextInput):
+    def __init__(self, **kwargs):
+        super(SearchBox, self).__init__(**kwargs)
+        self.text = "search"
+    @property
+    def html(self):
+        html_str = '<input type="search" id="{id}" name="{id}" placeholder="{text}"{disabled} />'.format(
+            id=self.controlID,
+            disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
+            text=self.unescaped_text,
+            )
+
+        return html_str
+
+class MultilineButton(BalsamiqElement):
+    @property
+    def html(self):
+        html_str = '<a href="#"><div class="MultilineButton">{children}</div></a>'.format(
+            value=self.scrollBarValue,
+            children=''.join('<span>{0}</span>'.format(x) for x in self.REst_repl_text.split('\n'))
+            )
+        return html_str
+
+class ProgressBar(BalsamiqElement):
+    def __init__(self, **kwargs):
+        super(CheckBoxGroup, self).__init__(**kwargs)
+        self.scrollBarValue = 50
+    @property
+    def html(self):
+        html_str = '<progress value="{value}" max="100">{value}%</progress>'.format(
+            value=self.scrollBarValue,
+            )
+        return html_str
+
+
+
 
 for key, value in locals().copy().iteritems():
     if isclass(value) and issubclass(value, BalsamiqElement):

@@ -146,7 +146,10 @@ def re_repl_4(m):
     return m.group(1).rstrip('\n\t')
 
 def remove_extra_white_space(html_string):
-    #return re.sub(r'(?=[^/])>\n\t*[\b\n]([^<]*)\n[\t]*?<', r'>\1<', html_string)
+    """Remove dumb whitespace for readability.
+    
+    Maybe something smarter than regex would be better here, but this is a start."""
+
     temp = re.sub(r'<(([\w]+)[^/]*?)>([^<]+)</\2>', re_repl_1, html_string, re.DOTALL)
     temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=</{0,1}(?:a|em|strong|span)[^>]*>)', re_repl_2, temp, re.DOTALL)
     temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=<)', re_repl_3, temp, re.DOTALL)
@@ -185,54 +188,16 @@ def write_any(target, text):
 
 def main(balsamiq_xml, html_output=sys.stdout):
     balsamiq_xml_string = read_any(balsamiq_xml)
-    #
+
     elements = get_elements(balsamiq_xml_string)
-    #
+
     root = nest_elements(elements)
-    #
     root = parse_siblings(root)
-    #
     html = get_html_from_balsamiq_element(root)
-    #
+
     write_any(html_output, html)
     return html
-    
 
-text = """
-<mockup version="1.0" skin="sketch" measuredW="909" measuredH="870" mockupW="801" mockupH="870">
-  <controls>
-    <control controlID="44" controlTypeID="com.balsamiq.mockups::Title" x="306" y="15" w="435" h="-1" measuredW="286" measuredH="50" zOrder="2" locked="false" isInGroup="-1">
-      <controlProperties>
-        <align>center</align>
-        <text>Kendall%20Mayhew</text>
-      </controlProperties>
-    </control>
-    <control controlID="45" controlTypeID="com.balsamiq.mockups::TabBar" x="171" y="76" w="675" h="744" measuredW="284" measuredH="100" zOrder="1" locked="false" isInGroup="-1">
-      <controlProperties>
-        <selectedIndex>3</selectedIndex>
-        <tabHPosition>center</tabHPosition>
-        <text>Home%2C%20Bio%2C%20Photos%2C%20Reel%2C%20Resume</text>
-      </controlProperties>
-    </control>
-    <control controlID="48" controlTypeID="com.balsamiq.mockups::Canvas" x="108" y="0" w="801" h="870" measuredW="100" measuredH="70" zOrder="0" locked="false" isInGroup="-1"/>
-    <control controlID="53" controlTypeID="com.balsamiq.mockups::VerticalTabBar" x="251" y="148" w="480" h="600" measuredW="200" measuredH="178" zOrder="3" locked="false" isInGroup="-1">
-      <controlProperties>
-        <position>left</position>
-        <selectedIndex>1</selectedIndex>
-        <text>First%20Tab%0ASecond%20Tab%0AThird%20Tab%0AFourth%20Tab</text>
-      </controlProperties>
-    </control>
-    <control controlID="54" controlTypeID="com.balsamiq.mockups::Image" x="357" y="170" w="347" h="447" measuredW="77" measuredH="79" zOrder="4" locked="false" isInGroup="-1">
-      <controlProperties>
-        <text/>
-      </controlProperties>
-    </control>
-  </controls>
-</mockup>
-"""
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        main(StringIO(text))
-    else:
-        main(*sys.argv[1:])
+    main(*sys.argv[1:])
