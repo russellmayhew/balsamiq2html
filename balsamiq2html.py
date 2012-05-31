@@ -17,7 +17,7 @@ from pprint import pformat, pprint
 from copy import deepcopy
 from uuid import uuid4 as uuid
 
-from elements import *
+from elements import BalsamiqElement
 
 def getattrs(target):
     class_attrs = dir(target.__class__)
@@ -33,8 +33,13 @@ def clean_value(value):
         try:
             value = int(value)
         except ValueError:
-            value = value
+            try:
+                value = float(value)
+            except:
+                value = value
     return value
+
+bal_dim_attrs = ('w', 'h', 'measuredW', 'measuredH')
 
 def get_elements(balsamiq_xml_string):
     dom = parseString(balsamiq_xml_string)
@@ -64,6 +69,8 @@ def get_elements(balsamiq_xml_string):
             element.height = element.measuredH
         else:
             element.height = element.h
+        for attr in bal_dim_attrs:
+            delattr(element, attr)
         del element.locked
         del element.isInGroup
         element.x1 = element.x + element.width
@@ -77,6 +84,8 @@ HIGH = 1
 
 corner_attrs = ('x', 'x1', 'y', 'y1')
 corner_rel_attrs = tuple([x + '_rel' for x in corner_attrs])
+overlap_attrs = ('overlaps', 'x_overlaps', 'y_overlaps')
+
 
 def nest_elements(elements):
     """Take flat list of elements and return hierarchical list."""
@@ -110,19 +119,21 @@ def nest_elements(elements):
                         element.position_rules.append('bottom: {0}%'.format(round(100.*(big_element.y1 - element.y1)/big_element.height)))
                     else:
                         element.position_rules.append('top: {0}%'.format(round(100.*(big_element.y - element.y)/big_element.height)))
+                for attr in corner_rel_attrs + overlap_attrs:
+                    delattr(element, attr)
                 big_element.children.append(element)
-                big_element.children.sort(key = lambda x: x.zOrder)
+                big_element.children.sort(key=lambda x: (-(x.width * x.height), x.zOrder))
                 elements.remove(element)
                 break
             for attr in corner_rel_attrs:
                 delattr(element, attr)
-    elements.sort(key=lambda elem: (elem.y, elem.x))
-    root = Root(children=elements)
+    root = BalsamiqElement.new('Root', children=elements)
     return root
 
-def parse_siblings(element):
-    element.sort(key=lambda x: x.y)
-    return element
+def parse_siblings(root):
+    root.sort(key=lambda x: x.y)
+    import pdb; pdb.set_trace()
+    return root
 #     if element.y_overlaps:
 #         if element.x_rel == HIGH:
 #             element.position_rules.append('float: left')
@@ -155,14 +166,10 @@ def remove_extra_white_space(html_string):
     temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=<)', re_repl_3, temp, re.DOTALL)
     return re.sub(r'([^<]*)(?=</{0,1}(?:a|em|strong|span)[^>]*>)', re_repl_4, temp, re.DOTALL)
 
-def remove_url_escaping(url_string):
-    return urllib.unquote(url_string)
-
 def get_html_from_balsamiq_element(element, indent_string="\t"):
     html = parseString(element.html).toprettyxml(indent=indent_string, encoding="utf-8")
     html = remove_extra_white_space(html)
-    html = remove_url_escaping(html)
-    return html
+    return element.html
 
 def encoding_safe_read(file_object):
     if file_object.read(3) != codecs.BOM_UTF8:

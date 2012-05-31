@@ -29,16 +29,13 @@ h1 {
 /*** TabBar ***/
 ul.tab_container {
     display: block;
-    overflow: auto;
     margin: 0 auto;
 }
 ul.tab_container li.tab{
-    display: block;
-    float: left;
+    display: inline-block;
     padding: 0 10px;
     border: 1px solid #999;
     border-bottom: none;
-    
 }
 ul.tab_container.bottom li.tab{
     border-bottom: 1px solid #999;

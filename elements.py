@@ -1,5 +1,6 @@
 import re
-import urllib
+from cgi import escape
+from urllib import unquote
 from StringIO import StringIO
 from inspect import isclass
 from uuid import uuid4 as uuid
@@ -16,8 +17,16 @@ def REst_repl(m):
         return m.group(0)
 
 def REst_filter(string):
-    return re.sub('_(.+?)_|\[(.+?)\]|(?<=\s)\*(.+?)\*', REst_repl, string)
+    return re.sub(r'_(.+?)_|\[(.+?)\]|\s{0,1}\*(.+?)\*', REst_repl, string)
 
+def unquote_all(text):
+    def unicode_unquoter(match):
+        return unichr(int(match.group(1),16))
+
+    text = re.sub('(%)(?=\d{2})', '%u00', text)
+    text = unquote(re.sub(r'%u([0-9a-fA-F]{4})',unicode_unquoter,text))
+
+    return escape(text).encode('ascii', 'xmlcharrefreplace')
 
 
 class BalsamiqElement(object):
@@ -51,11 +60,21 @@ class BalsamiqElement(object):
 
     @property
     def children_html(self):
-        return ''.join([elem.html for elem in self.children])
+        return ''.join([elem if isinstance(elem, basestring) else elem.html for elem in self.children])
+
+    @property
+    @staticmethod
+    def default_css():
+        """This property should be overridden by subclasses and return a (non-pretty) string """
+        return None
+
+
+
 
     @property
     def unescaped_text(self):
-        return urllib.unquote(getattr(self, 'text', ''))
+        text = getattr(self, 'text', '')
+        return unquote_all(text) if isinstance(text, basestring) else text
 
     @property
     def REst_repl_text(self):
@@ -66,8 +85,8 @@ class BalsamiqElement(object):
         for child_element in self.children:
             child_element.sort(*args, **kwargs)
     @staticmethod
-    def new(tag="div"):
-        return BalsamiqElement._subclass_map.get(tag, BalsamiqElement)(tag=tag)
+    def new(tag="div", **kwargs):
+        return BalsamiqElement._subclass_map.get(tag, BalsamiqElement)(tag=tag, **kwargs)
 
 
 class Root(BalsamiqElement):
@@ -85,6 +104,7 @@ class Root(BalsamiqElement):
 <meta name="author" content="Russell Mayhew"/>
 <title>{title}</title>
 <link rel="stylesheet" type="text/css" href="style/default.css"/>
+<link rel="stylesheet" type="text/css" href="style/custom.css"/>
 </head>
 <body>
 <div id="main">
@@ -145,7 +165,7 @@ class TabBar(BalsamiqElement):
     @property
     def tabs(self):
         tabs = []
-        for i, tab_text in enumerate(self.unescaped_text.split(", ")):
+        for i, tab_text in enumerate(re.split(r'(?<=[^\\]),', self.unescaped_text)):
             if i == self.selectedIndex:
                 class_str = "tab selected"
             else:
@@ -157,7 +177,7 @@ class TabBar(BalsamiqElement):
         return tabs
     @property
     def html(self):
-        tabs_str = '<ul class="tab_container {position}">{tabs}<li class="tab clear"/></ul>'.format(
+        tabs_str = '<ul class="tab_container {position}">{tabs}</ul>'.format(
             id=self.controlID,
             position=self.position,
             tabs=''.join(self.tabs),
@@ -219,12 +239,16 @@ class Button(BalsamiqElement):
         return html_str
 
 class CheckBox(BalsamiqElement):
+    def __init__(self, **kwargs):
+        super(CheckBox, self).__init__(**kwargs)
+        self.state = ""
+
     @property
     def html(self):
         html_str = '<div id="{id}"><label><input type="checkbox" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
             id=self.controlID,
             name=self.name if hasattr(self, 'name') else self.controlID,
-            display_val=self.REst_repl_text,
+            display_val=self.display_val if hasattr(self, 'display_val') else self.REst_repl_text,
             value=self.unescaped_text,
             checked=' checked=""' if 'selected' in self.state.lower() else '',
             disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
@@ -232,12 +256,16 @@ class CheckBox(BalsamiqElement):
         return html_str
 
 class RadioButton(BalsamiqElement):
+    def __init__(self, **kwargs):
+        super(RadioButton, self).__init__(**kwargs)
+        self.state = ""
+
     @property
     def html(self):
         html_str = '<div id="{id}"><label><input type="radio" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
             id=self.controlID,
             name=self.name if hasattr(self, 'name') else self.controlID,
-            display_val=self.REst_repl_text,
+            display_val=self.display_val if hasattr(self, 'display_val') else self.REst_repl_text,
             value=self.unescaped_text,
             checked=' checked=""' if 'selected' in self.state.lower() else '',
             disabled=' disabled=""' if 'disabled' in self.state.lower() else '',
@@ -424,7 +452,7 @@ class DateChooser(BalsamiqElement):
 
 class HRule(BalsamiqElement):
     @property
-    def html():
+    def html(self):
         return '<hr/>'
 
 class NumericStepper(BalsamiqElement):
@@ -438,20 +466,149 @@ class NumericStepper(BalsamiqElement):
 
         return html_str
 
-class BreadCrumbs(BalsamiqElement):
-    pass
-class LinkBar(BalsamiqElement):
-    pass
-class ButtonBar(BalsamiqElement):
-    pass
+class NavElement(BalsamiqElement):
+    def __init__(self, **kwargs):
+        super(NavElement, self).__init__(**kwargs)
+        self.text_parsed = False
+
+    def parse_text(self, sep):
+        for i, elem_text in enumerate(re.split(r'(?<=[^\\]),', self.unescaped_text)):
+            elem_text = elem_text.strip()
+            if i != 0:
+                self.children.append(sep)
+
+            if i == getattr(self, 'selectedIndex', -1):
+                self.children.append('<div>{0}</div>'.format(elem_text))
+            else:
+                self.children.append('<a href="#"><div>{0}</div></a>'.format(elem_text))
+
+    @property
+    def html(self):
+        if not self.text_parsed:
+            self.parse_text()
+
+        html_str = '<div id="{id}" class="nav_element">{children}</div>'.format(
+            id=self.controlID,
+            children=self.children_html
+            )
+        return html_str
+
+class BreadCrumbs(NavElement):
+    @property
+    def html(self):
+        if not self.text_parsed:
+            self.selectedIndex = len(re.split(r'(?<=[^\\]),', self.unescaped_text)) - 1
+            self.parse_text('&gt;')
+
+        html_str = '<div id="{id}" class="breadcrumbs">{children}</div>'.format(
+            id=self.controlID,
+            children=self.children_html
+            )
+        return html_str
+
+class LinkBar(NavElement):
+    @property
+    def html(self):
+        if not self.text_parsed:
+            self.parse_text('|')
+
+        html_str = '<div id="{id}" class="link_bar">{children}</div>'.format(
+            id=self.controlID,
+            children=self.children_html
+            )
+        return html_str
+
+class ButtonBar(NavElement):
+    @property
+    def html(self):
+        if not self.text_parsed:
+            self.parse_text('')
+
+        html_str = '<div id="{id}" class="button_bar">{children}</div>'.format(
+            id=self.controlID,
+            children=self.children_html
+            )
+        return html_str
 
 class DataGrid(BalsamiqElement):
+    def __init__(self, **kwargs):
+        super(DataGrid, self).__init__(**kwargs)
+        self.text_parsed = False
+
     @property
-    def html():
-        html_str = "<table><thead></thead><tbody>{children}</tbody></table>".format(
-            children=self.children
+    def children_html(self):
+        return ''.join(self.raw_children)
+
+    def parse_text(self):
+        header_names = []
+        self.raw_children = []
+        rows = self.unescaped_text.split('\n')
+        for row_index, row in enumerate(rows):
+            if row_index == len(rows) - 1 and row.startswith('{') and row.endswith('}'):
+                continue
+            self.raw_children.append('<tr>')
+            split_row = re.split(r'(?<=[^\\]),', row)
+            for cell_index, cell in enumerate(split_row):
+                cell = cell.strip()
+
+                split_cell = cell.split(' ')
+
+                if row_index == 0:
+                    cell_tag = 'th'
+                    if len(split_cell) > 1 and split_cell[-1].strip('^v') == '':
+                        del split_cell[-1]
+                        sortable = True
+                    else:
+                        sortable = False
+                    header_names.append(split_cell[0])
+                else:
+                    cell_tag = 'td'
+
+                    if cell in ('[]', '[ ]', '[x]'):
+                        elem = CheckBox()
+                        elem.name = header_names[cell_index]
+                        elem.text = split_row[0].split(r'\r ')[0]
+                        elem.display_val = ''
+                        if cell == '[x]':
+                            elem.state = "selected"
+                        self.raw_children.extend(['<td>', elem.html, '</td>'])
+                        continue
+                    elif cell in ('()', '( )', '(o)'):
+                        elem = RadioButton()
+                        elem.name = header_names[cell_index]
+                        elem.text = split_row[0].split(r'\r ')[0]
+                        elem.display_val = ''
+                        if cell == '(o)':
+                            elem.state = "selected"
+                        self.raw_children.append(['<td>', elem.html, '</td>'])
+                        continue
+
+
+                cell = ' '.join([x.strip() for x in split_cell if x])
+
+                self.raw_children.append('<{0}>'.format(cell_tag))
+
+                cell_lines = REst_filter(cell).split(r'\r')
+                if len(cell_lines) > 1:
+                    for cell_line in cell_lines:
+                        self.raw_children.append('<span>{text}</span>'.format(text=cell_line))
+                else:
+                    self.raw_children.append(cell_lines[0])
+                
+                self.raw_children.append('</{0}>'.format(cell_tag))
+            self.raw_children.append('</tr>')
+        self.text_parsed = True
+
+    @property
+    def html(self):
+        if not self.text_parsed:
+            self.parse_text()
+
+        html_str = '<table id="{id}">{children}</table>'.format(
+            id=self.controlID,
+            children=self.children_html
             )
-    pass
+        return html_str
 
 class SearchBox(TextInput):
     def __init__(self, **kwargs):
@@ -471,14 +628,13 @@ class MultilineButton(BalsamiqElement):
     @property
     def html(self):
         html_str = '<a href="#"><div class="MultilineButton">{children}</div></a>'.format(
-            value=self.scrollBarValue,
             children=''.join('<span>{0}</span>'.format(x) for x in self.REst_repl_text.split('\n'))
             )
         return html_str
 
 class ProgressBar(BalsamiqElement):
     def __init__(self, **kwargs):
-        super(CheckBoxGroup, self).__init__(**kwargs)
+        super(ProgressBar, self).__init__(**kwargs)
         self.scrollBarValue = 50
     @property
     def html(self):
@@ -486,7 +642,6 @@ class ProgressBar(BalsamiqElement):
             value=self.scrollBarValue,
             )
         return html_str
-
 
 
 
