@@ -1,34 +1,12 @@
 import re
-from cgi import escape
-from urllib import unquote
-from StringIO import StringIO
+from cStringIO import StringIO
 from inspect import isclass
 from uuid import uuid4 as uuid
+from functools import total_ordering
 
-def REst_repl(m):
-    match1, match2, match3 = m.group(1, 2, 3)
-    if match1:
-        return '<em>{0}</em>'.format(match1)
-    elif match2:
-        return '<a href="#">{0}</a>'.format(match2)
-    elif match3:
-        return '<strong>{0}</strong>'.format(match3)
-    else:
-        return m.group(0)
+from util import REst_repl, REst_filter, unquote_all
 
-def REst_filter(string):
-    return re.sub(r'_(.+?)_|\[(.+?)\]|\s{0,1}\*(.+?)\*', REst_repl, string)
-
-def unquote_all(text):
-    def unicode_unquoter(match):
-        return unichr(int(match.group(1),16))
-
-    text = re.sub('(%)(?=\d{2})', '%u00', text)
-    text = unquote(re.sub(r'%u([0-9a-fA-F]{4})',unicode_unquoter,text))
-
-    return escape(text).encode('ascii', 'xmlcharrefreplace')
-
-
+@total_ordering
 class BalsamiqElement(object):
     """Base class for all Balsamiq elements."""
     _subclass_map = {}
@@ -49,6 +27,21 @@ class BalsamiqElement(object):
                                                                             children=len(self.children)
                                                                             )
 
+    # Comparers
+    def __eq__(self, other):
+        return False
+
+    def __lt__(self, other):
+        if self.y1 < other.y:
+            return True
+        elif self.size > other.size:
+            return True
+        return False
+
+    @property
+    def size(self):
+        return self.width * self.height
+
     @property
     def html(self):
         html_str = '<{tag} id="{id}">{children}</{tag}>'.format(
@@ -68,9 +61,6 @@ class BalsamiqElement(object):
         """This property should be overridden by subclasses and return a (non-pretty) string """
         return None
 
-
-
-
     @property
     def unescaped_text(self):
         text = getattr(self, 'text', '')
@@ -84,6 +74,7 @@ class BalsamiqElement(object):
         self.children.sort(*args, **kwargs)
         for child_element in self.children:
             child_element.sort(*args, **kwargs)
+
     @staticmethod
     def new(tag="div", **kwargs):
         return BalsamiqElement._subclass_map.get(tag, BalsamiqElement)(tag=tag, **kwargs)

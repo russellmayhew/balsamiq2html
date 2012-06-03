@@ -1,43 +1,9 @@
-import os
-import re
 import sys
-import codecs
-import urllib
-# import xml.dom.minidom
-# if not getattr(xml.dom.minidom, 'OrderedDict'):
-#     import collections
-#     import minidom_mods
-#     xml.dom.minidom.OrderedDict = collections.OrderedDict
-#     xml.dom.minidom.Element.__init__ = minidom_mods.__init__
-#     xml.dom.minidom.Element.writexml = minidom_mods.writexml
-from xml.dom.minidom import parseString
-from itertools import product
-from StringIO import StringIO
-from pprint import pformat, pprint
-from copy import deepcopy
-from uuid import uuid4 as uuid
 
 from elements import BalsamiqElement
+from util import prettify_html, read_any, write_any, getattrs, \
+                 parseString, clean_value
 
-def getattrs(target):
-    class_attrs = dir(target.__class__)
-    pprint(dict((attr, getattr(target, attr)) for attr in dir(target) if attr not in class_attrs))
-
-
-def clean_value(value):
-    if value.lower() == 'true':
-        value = True
-    elif value.lower() == 'false':
-        value = False
-    else:
-        try:
-            value = int(value)
-        except ValueError:
-            try:
-                value = float(value)
-            except:
-                value = value
-    return value
 
 bal_dim_attrs = ('w', 'h', 'measuredW', 'measuredH')
 
@@ -89,7 +55,7 @@ overlap_attrs = ('overlaps', 'x_overlaps', 'y_overlaps')
 
 def nest_elements(elements):
     """Take flat list of elements and return hierarchical list."""
-    elements.sort(key=lambda x: (x.width * x.height))
+    elements.sort(key=lambda x: x.size)
     elements_copy = elements[:]
     for i, element in enumerate(elements_copy):
         for big_element in elements_copy[i + 1:]:
@@ -122,7 +88,7 @@ def nest_elements(elements):
                 for attr in corner_rel_attrs + overlap_attrs:
                     delattr(element, attr)
                 big_element.children.append(element)
-                big_element.children.sort(key=lambda x: (-(x.width * x.height), x.zOrder))
+                big_element.children.sort(key=lambda x: (-x.size, x.zOrder))
                 elements.remove(element)
                 break
             for attr in corner_rel_attrs:
@@ -130,10 +96,7 @@ def nest_elements(elements):
     root = BalsamiqElement.new('Root', children=elements)
     return root
 
-def parse_siblings(root):
-    root.sort(key=lambda x: x.y)
-    import pdb; pdb.set_trace()
-    return root
+
 #     if element.y_overlaps:
 #         if element.x_rel == HIGH:
 #             element.position_rules.append('float: left')
@@ -147,64 +110,27 @@ def parse_siblings(root):
 #     if [x for x in element.position_rules if x.startswith('float')]:
 #         big_element.has_floats = True
 
-def re_repl_1(m):
-    return '<{0}>{2}</{1}>'.format(m.group(1), m.group(2), m.group(3).strip('\n\t'))
-def re_repl_2(m):
-    return '{0}{1}'.format(m.group(1), m.group(2).strip('\n\t'))
-def re_repl_3(m):
-    return '{0}{1}'.format(m.group(1), m.group(2).lstrip('\n\t'))
-def re_repl_4(m):
-    return m.group(1).rstrip('\n\t')
 
-def remove_extra_white_space(html_string):
-    """Remove dumb whitespace for readability.
-    
-    Maybe something smarter than regex would be better here, but this is a start."""
-
-    temp = re.sub(r'<(([\w]+)[^/]*?)>([^<]+)</\2>', re_repl_1, html_string, re.DOTALL)
-    temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=</{0,1}(?:a|em|strong|span)[^>]*>)', re_repl_2, temp, re.DOTALL)
-    temp = re.sub(r'(</{0,1}(?:a|em|strong|span)[^>]*>)([^<]*)([^<]*)(?=<)', re_repl_3, temp, re.DOTALL)
-    return re.sub(r'([^<]*)(?=</{0,1}(?:a|em|strong|span)[^>]*>)', re_repl_4, temp, re.DOTALL)
-
-def get_html_from_balsamiq_element(element, indent_string="\t"):
-    html = parseString(element.html).toprettyxml(indent=indent_string, encoding="utf-8")
-    html = remove_extra_white_space(html)
-    return element.html
-
-def encoding_safe_read(file_object):
-    if file_object.read(3) != codecs.BOM_UTF8:
-        file_object.seek(0)
-    return file_object.read()
-
-def read_any(source):
-    if hasattr(source, 'read'):
-        return encoding_safe_read(source)
-    elif os.path.exists(source):
-        with open(source, 'rb') as f:
-            return encoding_safe_read(f)
-    else:
-        return source
-
-def write_any(target, text):
-    if hasattr(target, 'write'):
-        target.write(text)
-    else:
-        with open(target, 'wb') as f:
-            f.write(text)
-
-
-def main(balsamiq_xml, html_output=sys.stdout):
+def balsamiq_to_balsamadom(balsamiq_xml):
     balsamiq_xml_string = read_any(balsamiq_xml)
 
     elements = get_elements(balsamiq_xml_string)
 
     root = nest_elements(elements)
-    root = parse_siblings(root)
-    html = get_html_from_balsamiq_element(root)
+
+    root.sort()
+
+    return root
+
+def balsamiq_to_html(balsamiq_xml, html_output=sys.stdout):
+    balsamadom = balsamiq_to_balsamadom(balsamiq_xml)
+
+    html = prettify_html(balsamadom.html)
 
     write_any(html_output, html)
+
     return html
 
 
 if __name__ == '__main__':
-    main(*sys.argv[1:])
+    balsamiq_to_html(*sys.argv[1:])
