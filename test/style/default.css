@@ -1,12 +1,10 @@
-* {
-    margin: 0;
-    padding: 0;
-}
-
 html, body {
     width: 100%;
     height: 100%;
 }
+
+strong { font-weight: bold; }
+em { font-style: italic; }
 
 #main {
     width: 940px;
@@ -17,44 +15,62 @@ html, body {
     clear: both;
 }
 
-div {
-    border: solid 1px #999;
+
+/*** Canvas ***/
+div.canvas {
+    border: solid 1px black;
 }
 
 /*** Title ***/
 h1 {
     text-align: center;
+    font-size: 2em;
+    font-weight: bold;
+}
+
+/*** SubTitle[sic]***/
+h2 {
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
 }
 
 /*** TabBar ***/
 ul.tab_container {
     display: block;
-    margin: 0 auto;
+    text-align: center;
+    border: none;
 }
 ul.tab_container li.tab{
     display: inline-block;
-    padding: 0 10px;
-    border: 1px solid #999;
+    padding: 2px 6px;
+    margin: 0 -2px;
+    border: 1px solid #333;
     border-bottom: none;
+    background-color: #ccc;
 }
 ul.tab_container.bottom li.tab{
-    border-bottom: 1px solid #999;
+    border-bottom: 1px solid #333;
     border-top: none;
 }
 ul.tab_container li.tab.selected {
+    background-color: white;
     position: relative;
-    padding: 0 12px;
-    top: 2px;
+    padding: 2px 7px;
+    top: 1px;
 }
 ul.tab_container.bottom li.tab.selected {
-    top: -2px;
+    top: -1px;
 }
 div.tabbed {
+    border: 1px solid #333;
+    padding: 2px;
 }
 
 
 /*** VerticalTabBar ***/
 ul.vert_tab_container {
+    margin-top: 2em;
     float: right;
 }
 ul.vert_tab_container.right {
@@ -62,25 +78,129 @@ ul.vert_tab_container.right {
 }
 ul.vert_tab_container li.tab {
     display: block;
-    padding: 10px 0;
-    border: 1px solid #999;
+    margin: 3px 0;
+    padding: 5px 2px;
+    border: 1px solid #333;
     border-right: none;
+    background-color: #ccc;
 }
 ul.vert_tab_container.right li.tab {
-    border-right: 1px solid #999;
+    border-right: 1px solid #333;
     border-left: none;
 }
 ul.vert_tab_container li.tab.selected {
     position: relative;
-    padding: 12px 0;
-    left: 2px;
+    padding: 6px 2px;
+    left: 1px;
+    background-color: white;
 }
 ul.vert_tab_container.right li.tab.selected {
-    left: -2px;
+    left: -1px;
 }
 div.vert_tabbed {
+    border: 1px solid #333;
+    padding: 2px;
     float: right;
 }
 div.vert_tabbed.right {
     float: left;
 }
+
+/*** MultilineButton ***/
+div.multiline_button {
+    display: inline-block;
+    padding: 5px 10px;
+    border: 1px solid black;
+    border-radius: 15px;
+}
+div.multiline_button span {
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+/*** DataGrid ***/
+table {
+    border: 1px solid black;
+    text-align: left;
+}
+td, th {
+    padding: 5px 10px 5px 5px;
+    border-right: 1px solid black;
+    border-left: 1px solid black;
+}
+th {
+    background-color: #ccc;
+}
+tr {
+    background-color: white;
+}
+tr:nth-child(2n) {
+    background-color: #eee;
+}
+td span,
+tr span {
+    display: block;
+}
+
+
+/*** ButtonBar ***/
+/*** BreadCrumbs ***/
+/*** LinkBar ***/
+
+/*** Button ***/
+/* Pass? */
+
+/*** CheckBox ***/
+/* Pass? */
+
+/*** ComboBox ***/
+/* Pass? */
+
+/*** RadioButton ***/
+/* Pass? */
+
+/*** RadioButtonGroup ***/
+/* Pass? */
+
+/*** TextInput ***/
+/* Pass? */
+
+/*** TextArea ***/
+/* Pass? */
+
+/*** Link ***/
+/* Pass? */
+
+/*** Label ***/
+/* Pass? */
+
+/*** Paragraph ***/
+/* Pass? */
+
+/*** CheckBoxGroup ***/
+/* Pass? */
+
+/*** DateChooser ***/
+/* Pass? */
+
+/*** HRule ***/
+/* Pass? */
+
+/*** NumericStepper ***/    
+/* Pass? */
+
+/*** SearchBox ***/
+/* Pass? */
+
+/*** ProgressBar ***/
+/* Pass? */
+
+/*** HSlider ***/
+/* Pass? */
+
+/*** VSlider ***/
+/* Pass? */
+
+/*** VolumeSlider ***/
+/* Pass? */

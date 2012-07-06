@@ -9,6 +9,12 @@ from urllib import unquote
 from xml.dom.minidom import parseString
 
 
+def pascal_to_underscore(target):
+    return re.sub(
+        '^([A-Z])|([A-Z])',
+        lambda m: m.group(1).lower() if m.group(1) else '_' + m.group(2).lower(),
+        target)
+
 def clean_value(value):
     if value.lower() == 'true':
         value = True
@@ -24,18 +30,18 @@ def clean_value(value):
                 value = value
     return value
 
-def REst_repl(m):
-    match1, match2, match3 = m.group(1, 2, 3)
-    if match1:
-        return '<em>{0}</em>'.format(match1)
-    elif match2:
-        return '<a href="#">{0}</a>'.format(match2)
-    elif match3:
-        return '<strong>{0}</strong>'.format(match3)
-    else:
-        return m.group(0)
-
 def REst_filter(string):
+    def REst_repl(m):
+        match1, match2, match3 = m.group(1, 2, 3)
+        if match1:
+            return '<em>{0}</em>'.format(match1)
+        elif match2:
+            return '<a href="#">{0}</a>'.format(match2)
+        elif match3:
+            return '<strong>{0}</strong>'.format(match3)
+        else:
+            return m.group(0)
+
     return re.sub(r'_(.+?)_|\[(.+?)\]|\s{0,1}\*(.+?)\*', REst_repl, string)
 
 def unquote_all(text):
@@ -101,7 +107,12 @@ def remove_extra_white_space(html_string):
 
     return temp
 
+def unpack_selfclosing_divs(html_string):
+    """The div for clears is being returned as self-closing, which breaks stuff."""
+    return re.sub(r'(<div[^>]*?)/>', r'\1></div>', html_string)
+
 def prettify_html(html, indent_string="\t"):
     html = parseString(html).toprettyxml(indent=indent_string, encoding="utf-8")
     html = remove_extra_white_space(html)
+    html = unpack_selfclosing_divs(html)
     return html

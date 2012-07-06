@@ -4,7 +4,7 @@ from inspect import isclass
 from uuid import uuid4 as uuid
 from functools import total_ordering
 
-from util import REst_repl, REst_filter, unquote_all
+from util import pascal_to_underscore, REst_filter, unquote_all
 
 @total_ordering
 class BalsamiqElement(object):
@@ -32,21 +32,21 @@ class BalsamiqElement(object):
         return False
 
     def __lt__(self, other):
-        if self.y1 < other.y:
+        if (self.y + self.y1) / 2 < other.y:
             return True
-        elif self.size > other.size:
+        elif self.size_ > other.size_:
             return True
         return False
 
     @property
-    def size(self):
+    def size_(self):
         return self.width * self.height
 
     @property
     def html(self):
-        html_str = '<{tag} id="{id}">{children}</{tag}>'.format(
-            tag=self.tag,
+        html_str = '<div id="{id}" class="{class_str}">{children}</div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             children=self.children_html,
             )
         return html_str
@@ -56,10 +56,10 @@ class BalsamiqElement(object):
         return ''.join([elem if isinstance(elem, basestring) else elem.html for elem in self.children])
 
     @property
-    @staticmethod
+    @classmethod
     def default_css():
-        """This property should be overridden by subclasses and return a (non-pretty) string """
-        return None
+        """This property should be overridden by subclasses and return a (non-pretty okay) string."""
+        raise NotImplementedError
 
     @property
     def unescaped_text(self):
@@ -68,7 +68,7 @@ class BalsamiqElement(object):
 
     @property
     def REst_repl_text(self):
-        return re.sub('_(.+?)_|\[(.+?)\]|(?<=\s)\*(.+?)\*', REst_repl, self.unescaped_text)
+        return REst_filter(self.unescaped_text)
 
     def sort(self, *args, **kwargs):
         self.children.sort(*args, **kwargs)
@@ -94,6 +94,7 @@ class Root(BalsamiqElement):
 <meta name="generator" content="Balsamatron 0.1.0"/>
 <meta name="author" content="Russell Mayhew"/>
 <title>{title}</title>
+<link rel="stylesheet" type="text/css" href="style/reset.css"/>
 <link rel="stylesheet" type="text/css" href="style/default.css"/>
 <link rel="stylesheet" type="text/css" href="style/custom.css"/>
 </head>
@@ -120,16 +121,24 @@ class Title(BalsamiqElement):
             )
         return html_str
 
-class Canvas(BalsamiqElement):
-    """BalsamiqElement subclass for Canvas objects."""
+class Subtitle(Title):
     @property
     def html(self):
-        html_str = '<{tag} id="{id}">{children}</{tag}>'.format(
-            tag='div',
+        html_str = '<h2 id="{id}">{text}</h2>'.format(
             id=self.controlID,
-            children=self.children_html,
+            text=self.unescaped_text,
             )
         return html_str
+
+# class Canvas(BalsamiqElement):
+#     """BalsamiqElement subclass for Canvas objects."""
+#     @property
+#     def html(self):
+#         html_str = '<div id="{id}" class="canvas">{children}</div>'.format(
+#             id=self.controlID,
+#             children=self.children_html,
+#             )
+#         return html_str
 
 class Image(BalsamiqElement):
     """BalsamiqElement subclass for Image objects."""
@@ -138,8 +147,7 @@ class Image(BalsamiqElement):
         self.src = "image/image_not_found.png"
     @property
     def html(self):
-        html_str = '<{tag} id="{id}" width="{width}" height="{height}" src="{src}">{children}</{tag}>'.format(
-            tag='img',
+        html_str = '<img id="{id}" width="{width}" height="{height}" src="{src}">{children}</img>'.format(
             id=self.controlID,
             width=self.width,
             height=self.height,
@@ -178,8 +186,9 @@ class TabBar(BalsamiqElement):
             children=self.children_html,
             )
         tabs_and_container = tabs_str + container_str if self.position == "top" else container_str + tabs_str
-        html_str = '<div id="{id}">{children}</div>'.format(
+        html_str = '<div id="{id}" class="{class_str}">{children}</div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             children=tabs_and_container,
             )
         return html_str
@@ -214,8 +223,9 @@ class VerticalTabBar(BalsamiqElement):
             position=self.position,
             tabs=''.join(self.tabs),
             )
-        html_str = '<div id="{id}">{children}<div class="clear"/></div>'.format(
+        html_str = '<div id="{id}" class="{class_str}">{children}<div class="clear"></div></div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             children=container_str + tabs_str,
             )
         return html_str
@@ -223,7 +233,7 @@ class VerticalTabBar(BalsamiqElement):
 class Button(BalsamiqElement):
     @property
     def html(self):
-        html_str = '<div id="{id}"><input name="{text}" type="button" value="{text}"/></div>'.format(
+        html_str = '<input id="{id}" class="button" name="{text}" type="button" value="{text}"/>'.format(
             id=self.controlID,
             text=self.unescaped_text,
             )
@@ -236,8 +246,9 @@ class CheckBox(BalsamiqElement):
 
     @property
     def html(self):
-        html_str = '<div id="{id}"><label><input type="checkbox" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
+        html_str = '<div id="{id}" class="{class_str}"><label><input type="checkbox" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             name=self.name if hasattr(self, 'name') else self.controlID,
             display_val=self.display_val if hasattr(self, 'display_val') else self.REst_repl_text,
             value=self.unescaped_text,
@@ -253,8 +264,9 @@ class RadioButton(BalsamiqElement):
 
     @property
     def html(self):
-        html_str = '<div id="{id}"><label><input type="radio" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
+        html_str = '<div id="{id}" class="{class_str}"><label><input type="radio" name="{name}" value="{value}"{checked}{disabled}/> {display_val}</label></div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             name=self.name if hasattr(self, 'name') else self.controlID,
             display_val=self.display_val if hasattr(self, 'display_val') else self.REst_repl_text,
             value=self.unescaped_text,
@@ -276,8 +288,9 @@ class ComboBox(BalsamiqElement):
 
     @property
     def html(self):
-        html_str = '<div id="{id}"><label><select name="{id}"{disabled}>{children}</select></label></div>'.format(
+        html_str = '<div id="{id}" class="{class_str}"><label><select name="{id}"{disabled}>{children}</select></label></div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             disabled=' disabled=""' if 'disabled' in getattr(self, 'state', '').lower() else '',
             children=''.join(self.options),
             )
@@ -321,8 +334,9 @@ class RadioButtonGroup(BalsamiqElement):
         if not self.text_parsed:
             self.parse_text()
 
-        html_str = '<div id="{id}">{children}</div>'.format(
+        html_str = '<div id="{id}" class="{class_str}">{children}</div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             children=self.children_html,
             )
 
@@ -366,8 +380,9 @@ class CheckBoxGroup(BalsamiqElement):
         if not self.text_parsed:
             self.parse_text()
 
-        html_str = '<div id="{id}">{children}</div>'.format(
+        html_str = '<div id="{id}" class="{class_str}">{children}</div>'.format(
             id=self.controlID,
+            class_str=pascal_to_underscore(self.tag),
             children=self.children_html,
             )
 
@@ -427,7 +442,6 @@ class Paragraph(BalsamiqElement):
             )
 
         return html_str
-
 
 
 class DateChooser(BalsamiqElement):
@@ -539,6 +553,8 @@ class DataGrid(BalsamiqElement):
                 continue
             self.raw_children.append('<tr>')
             split_row = re.split(r'(?<=[^\\]),', row)
+            if row_index != 0:
+                split_row.extend([''] * (len(header_names) - len(split_row)))
             for cell_index, cell in enumerate(split_row):
                 cell = cell.strip()
 
@@ -618,7 +634,7 @@ class SearchBox(TextInput):
 class MultilineButton(BalsamiqElement):
     @property
     def html(self):
-        html_str = '<a href="#"><div class="MultilineButton">{children}</div></a>'.format(
+        html_str = '<a href="#"><div class="multiline_button">{children}</div></a>'.format(
             children=''.join('<span>{0}</span>'.format(x) for x in self.REst_repl_text.split('\n'))
             )
         return html_str
@@ -633,6 +649,26 @@ class ProgressBar(BalsamiqElement):
             value=self.scrollBarValue,
             )
         return html_str
+
+class VideoPlayer(BalsamiqElement):
+    @property
+    def html(self):
+        html_str = '<video id="{id}" />'.format(
+            id=self.controlID,
+            )
+        return html_str
+
+class Slider(BalsamiqElement):
+    @property
+    def slider_value(self):
+        return self.value
+
+    @property
+    def html(self):
+        html_str = '<input type="range" id="{id}" min="0" max="100" value="{value}"/>'.format(
+            id=self.controlID,
+            value=self.slider_value,
+            )
 
 
 
